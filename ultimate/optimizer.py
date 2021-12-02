@@ -39,12 +39,20 @@ def main():
     for ii in range(len(pods)):
             solver.Add(solver.Sum([x[ii, jj] for jj in range(num_teams)]) == 1)
 
-    # Top pods cannot play bottom pods
+    # Top pods cannot play with bottom pods
     for ii in range(num_top):
         for jj in range(len(pods) - num_bot, len(pods)):
             for kk in range(num_teams):
-                print(f'Adding constraint: x[{ii}, {kk}], x[{jj}, {kk}]')
+                # print(f'Adding constraint: x[{ii}, {kk}], x[{jj}, {kk}]')
                 solver.Add(solver.Sum([x[ii, kk], x[jj, kk]]) <= 1)
+
+    # Top pods cannot play against bottom pods
+    for kk in range(num_teams):
+        if kk % 2 == 0:
+            # Even row so combine this row and the next
+            for ii in range(num_top):
+                for jj in range(len(pods) - num_bot, len(pods)):
+                    solver.Add(solver.Sum([x[ii, kk]]))
 
     # Pods cannot play with someone more than max_play_with
     for ii in range(len(pods)):
@@ -84,15 +92,18 @@ def main():
             else:
                 aways.append(pods[ii].rank * x[ii, jj])
     sums = []
-    matchups = [homes[ih] - aways[ih] for ih in range(len(homes))]
+    # matchups = [homes[ih] - aways[ih] for ih in range(len(homes))]
     # for ix, match in enumerate(matchups):
-    #     t = solver.NumVar(0, 10000, f'match_{ix}')
-    #     solver.Add(solver.Sum(match) <= t)
-    #     solver.Add(solver.Sum(match) >= -t)
+    for ih in range(len(homes)):
+        t = solver.IntVar(0, 10000, f'match_{ih}')
+        solver.Add(homes[ih] - aways[ih] <= t)
+        solver.Add(homes[ih] - aways[ih] >= -t)
+        sums.append(t)
 
     # print('***matchups***')
-    print(matchups)
-    solver.Minimize(solver.Sum(matchups))
+    # print(matchups)
+    # solver.Minimize(solver.Sum(matchups))
+    solver.Minimize(solver.Sum(sums))
 
     # Solve
     status = solver.Solve()
@@ -107,6 +118,7 @@ def main():
                     print(f'Pod {ii} assigned to team {jj}. Cost = {pods[ii].rank}.')
     else:
         print('UUUUU')
+
 
 if __name__ == '__main__':
     main()
