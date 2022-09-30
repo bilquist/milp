@@ -50,15 +50,35 @@ class Team:
             for p2 in opponent_team.pods:
                 if p2 in p1.played_against:
                     played_running_total += p1.played_against[p2].get('count', 0)
-        mean_played_against = played_running_total / (len(self.pods) + len(opponent_team.pods))
+        # mean_played_against = played_running_total / (len(self.pods) + len(opponent_team.pods))
+        mean_played_against = played_running_total / len(self.pods)
         return mean_played_against
 
     def have_pods_played_together(self, opponent_team):
+        """
+        Returns a boolean stating whether any of the pods in this team have played any
+        of the pods in the opponent team.
+        """
         for p1 in self.pods:
             for p2 in opponent_team.pods:
                 if (p2 in p1.played_with) or (p1 in p2.played_with):
                     return True
         return False
+
+    def has_same_pods(self, team):
+        """
+        Returns a boolean stating whether the pods in this class are the same as
+        the pods in the input team.
+        """
+        for p1 in self.pods:
+            did_find = False
+            for p2 in team.pods:
+                if p1 == p2:
+                    did_find = True
+                    break
+            if not did_find:
+                return False
+        return True
 
 
 class Season:
@@ -83,15 +103,16 @@ class Season:
     def __init__(self, pods):
         self.pods = pods
         self.sorted_pods = self.sort_pods_by_rank()
-        # self.valid_teams = self.generate_valid_teams()
         self.schedule = {}
 
-    #         self.valid_teams, self.valid_bottoms, self.valid_tops = self.generate_potential_teams()
-    #         self.teams = {}
-
-    def have_pods_played_together(self, team):
+    @staticmethod
+    def have_team_pods_played_together(team):
+        """
+        Returns a boolean stating whether any of the pods in a team have played with
+        other pods in the team.
+        """
         for comb in itertools.combinations(team.pods, 2):
-            if comb[1] in comb[0].played_with:
+            if comb[1] in comb[0].played_with or comb[0] in comb[1].played_with:
                 return True
         return False
 
@@ -103,28 +124,6 @@ class Season:
         for pod in sorted_pods[-self.TOP_BOTTOM_POD_COUNT:]:
             pod.is_top = True
         return sorted_pods
-
-    #     def generate_potential_teams(self):
-    #         """
-    #         Generate all the possible team pairings, respecting the rules of top
-    #         and bottom pairing restrictions
-    #         """
-    #         valid_teams = []
-    #         valid_bottoms = []
-    #         valid_tops = []
-    #         all_teams = itertools.combinations(self.pods, 3)
-    #         for team in all_teams:
-    #             bottom = max(pod.is_bottom for pod in team)
-    #             top = max(pod.is_top for pod in team)
-    #             if not(bottom and top):
-    #                 t = Team(pods=team)
-    #                 valid_teams.append(t)
-    #             if not bottom:
-    #                 valid_tops.append(t)
-    #             if not top:
-    #                 valid_bottoms.append(t)
-
-    #         return valid_teams, valid_bottoms, valid_tops
 
     def generate_valid_teams(self):
         """Generate all valid pod combinations (aka, teams)"""
@@ -167,7 +166,7 @@ class Season:
             if len(t1.intersection(t2)) == 0:
                 # Validate the pods on these teams have not previously played together
                 # if not team1.have_pods_played_together(team2):
-                if not (self.have_pods_played_together(team1) or self.have_pods_played_together(team2)):
+                if not (self.have_team_pods_played_together(team1) or self.have_team_pods_played_together(team2)):
                     counter += 1
                     # Update the delta by the penalty of playing against another pod multiple times
                     mean_played_against = team1.get_mean_played_against_team(team2)
@@ -418,11 +417,10 @@ class Season:
         )
         return schedule2
 
-    def update_teams_played_against(self, team1, team2):
+    @staticmethod
+    def update_teams_played_against(team1, team2):
         # After the first event of the day, update the played_against schedule
         # for event in schedule:
-        # team1 = event[0]
-        # team2 = event[1]
         for p1 in team1.pods:
             for p2 in team2.pods:
                 p1.play_against(p2)

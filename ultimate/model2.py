@@ -1,11 +1,12 @@
 
+import itertools
 from ortools.linear_solver import pywraplp
 from ortools.sat.python import cp_model
 
 from ultimate.classes import Pod, Team
 
 
-def main(pods, num_top=12, num_bot=12, max_play_with=1, max_play_against=2):
+def main(pods, teams=None, num_top=12, num_bot=12, max_play_with=1, max_play_against=2):
 
     # Declare pods
     # pods = [Pod(name=ix, rank=ix) for ix in range(1, 49)]
@@ -91,6 +92,69 @@ def main(pods, num_top=12, num_bot=12, max_play_with=1, max_play_against=2):
                 if kk % 2 == 0:
                     model.Add(sum([x[ii, kk], x[opponent.rank - 1, kk + 1]]) <= limit)
                     model.Add(sum([x[ii, kk + 1], x[opponent.rank - 1, kk]]) <= limit)
+
+    # If teams is included, constrain the pods presented to be forced to play with one-another
+    if teams:
+        if len(teams) != num_teams:
+            raise ValueError("Input teams does not match the number of teams extracted from the pod count.")
+        for tt in iter_teams:
+            if tt % 2 == 0:
+                # Collect home vs. away from input teams
+                team1 = teams[tt]
+                team2 = teams[tt + 1]
+                # Construct the constraints forcing the values to be equal among them
+                for kk in iter_teams:
+                    # if tt == 0:
+                    #     print('constraints:')
+                    for comb in itertools.combinations(team1.pods, 2):
+                        # if tt == 0:
+                        #     print(f'x[{comb[0].rank - 1}, {kk}] == x[{comb[1].rank - 1}, {kk}]')
+                        model.Add(x[comb[0].rank - 1, kk] == x[comb[1].rank - 1, kk])
+                    for comb in itertools.combinations(team2.pods, 2):
+                        # if tt == 0:
+                        #     print(f'x[{comb[0].rank - 1}, {kk}] == x[{comb[1].rank - 1}, {kk}]')
+                        model.Add(x[comb[0].rank - 1, kk] == x[comb[1].rank - 1, kk])
+                    if kk % 2 == 0:
+                        # if tt == 0:
+                        #     print(f'[x[{team1.pods[0].rank - 1}, {kk}], x[{team2.pods[0].rank - 1}, {kk + 1}]] <= 1')
+                        #     print(f'[x[{team1.pods[0].rank - 1}, {kk + 1}], x[{team2.pods[0].rank - 1}, {kk}]] <= 1')
+                        model.Add(sum([
+                            x[team1.pods[0].rank - 1, kk],
+                            x[team2.pods[0].rank - 1, kk + 1]
+                        ]) <= 1)
+                        model.Add(sum([
+                            x[team1.pods[0].rank - 1, kk + 1],
+                            x[team2.pods[0].rank - 1, kk]
+                        ]) <= 1)
+            #
+            #
+            #             comb[0].play_with(comb[1])
+            #             comb[1].play_with(comb[0])
+            #
+            #
+            #
+            # team1_pods = [x[pod.rank - 1, kk] for pod in team1.pods]
+            # print('team1_pods:')
+            # print(team1_pods)
+            # # Keep the same pods
+            # model.Add(sum(team1_pods) == len(team1.pods))
+            # if kk % 2 == 0:
+            #     team2 = teams[kk + 1]
+            #     # Construct the team pod constraints
+            #
+            #     team2_pods = [x[pod.rank - 1, kk + 1] for pod in team2.pods]
+            #     # Keep the same pods
+            #
+            #     print('team2_pods:')
+            #     print(team2_pods)
+            #
+            #     model.Add(sum(team2_pods) == len(team2.pods))
+            #     # Prevent the teams from playing for a second time that day
+            #     print('prevent:')
+            #     print([team1_pods[0], team2_pods[0]])
+            #     # model.Add(sum([team1_pods[0], team2_pods[0]]) <= 1)
+            #     # all_pods = team1_pods + team2_pods
+            #     # model.Add(all_pods == len(team1.pods))
 
     # Objective
     homes = []
